@@ -139,6 +139,25 @@ int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
     return -1;
 }
 
+void entry_init(struct KV* entry) {
+    // TODO: Allocate both key and value on the same chunk
+    entry->key = (char *)malloc(entry->key_len);
+    if (entry->key == NULL)
+    {
+        printf("entry_init: Unable to intialize entry key");
+        exit(1);
+    }
+
+    entry->val = (char *)malloc(entry->val_len);
+    if (entry->val == NULL)
+    {
+        printf("entry_init: Unable to intialize entry value");
+        exit(1);
+    }
+
+    // char *chunk = (char *)malloc(e->key_len + e->val_len);
+}
+
 void KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len)
 {
     size_t size;
