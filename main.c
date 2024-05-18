@@ -50,7 +50,7 @@ struct hash_map
 
 void rehash_buf(struct hash_map *hmap, char *buf, int buf_len)
 {
-    for (size_t i = 0; i < buf_len; i + sizeof(struct KV))
+    for (size_t i = 0; i < buf_len; i += sizeof(struct KV))
     {
         struct KV *entry = (struct KV *)&hmap->arr[i];
         uint32_t hash = hmap->hash_fn(entry->key, entry->key_len, hmap->seed);
