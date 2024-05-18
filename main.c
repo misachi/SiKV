@@ -16,12 +16,12 @@
 struct hash_map;
 typedef uint32_t (*hash_function)(const void *key, int len, int seed);
 
-struct hash_map *KV_hash_map_init(unsigned long size, hash_function hash_fn);
+struct hash_map *KV_init(unsigned long size, hash_function hash_fn);
 void KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len);
 void *KV_get(struct hash_map *hmap, char *key, int key_len);
 void KV_delete(struct hash_map *hmap, char *key, int key_len);
 void *find(struct hash_map *hmap, char *key, int key_len);
-void KV_hash_map_destroy(struct hash_map *hmap);
+void KV_destroy(struct hash_map *hmap);
 void hash_map_resize(struct hash_map *hmap, int policy);
 
 struct KV
@@ -76,7 +76,7 @@ void hash_map_resize(struct hash_map *hmap, int policy)
     hmap->arr = arr;
 }
 
-struct hash_map *KV_hash_map_init(unsigned long capacity, hash_function hash_fn)
+struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn)
 {
     struct hash_map *hmap = (struct hash_map *)malloc(sizeof(struct hash_map));
     if (hmap == NULL)
@@ -220,8 +220,19 @@ void *KV_get(struct hash_map *hmap, char *key, int key_len)
     return find(hmap, key, key_len);
 }
 
-void KV_hash_map_destroy(struct hash_map *hmap)
+void KV_destroy(struct hash_map *hmap)
 {
+    int len = hmap->capacity * sizeof(struct KV);
+    for (size_t i = 0; i < len; i+=sizeof(struct KV))
+    {
+        if (hmap->arr[i] != EMPTY)
+        {
+            struct KV *entry = (struct KV *)&hmap->arr[i];
+            free(entry->key);
+            free(entry->val);
+        }
+    }
+
     free(hmap->arr);
     free(hmap);
 }
@@ -238,7 +249,7 @@ int main(int argc, char *argv[])
     // printf("%d\n", hash);
     // printf("%d\n", hash % 10);
     // }
-    struct hash_map *hmap = KV_hash_map_init(10, KV_hash_function);
+    struct hash_map *hmap = KV_init(10, KV_hash_function);
     int v = 15008;
     char *key = "foo";
     char *val = (char*)&v;
@@ -247,9 +258,12 @@ int main(int argc, char *argv[])
     KV_set(hmap, key, key_len, val, val_len);
 
     char *ret = (char *)KV_get(hmap, key, key_len);
+    v = 20000;
     if (ret == (void *)-1)
     {
         printf("Error\n");
+        KV_destroy(hmap);
+        return 1;
     }
 
     printf("Res: %d\n", *(int*)ret);
@@ -265,11 +279,13 @@ int main(int argc, char *argv[])
     if (ret2 == (void *)-1)
     {
         printf("Error\n");
+        KV_destroy(hmap);
+        return 1;
     }
 
     printf("Res: %d\n", *(int*)ret2);
 
-    KV_hash_map_destroy(hmap);
+    KV_destroy(hmap);
 
     return 0;
 }
