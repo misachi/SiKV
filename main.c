@@ -169,21 +169,14 @@ void KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_le
     {
         hash_map_resize(hmap, RESIZE_POLICY);
     }
-    entry = (struct KV *)malloc(sizeof(struct KV));  // Remove allocation
-    if (entry == NULL)
-    {
-        printf("KV_set: Unable to intialize entry");
-        exit(1);
-    }
 
     // KV already allocated during initialization. We just need to get our KV chunk
     entry = (struct KV*)&hmap->arr[slot * sizeof(struct KV)];
-    // entry->key = key;
+
     entry->key_len = key_len;
     entry->val_len = val_len;
     entry_init(entry);
     memcpy(entry->key, key, key_len);
-    // entry->val = val;
     memcpy(entry->val, val, val_len);
     // memcpy((char *)&hmap->arr[slot * sizeof(struct KV)], (char *)entry, sizeof(struct KV));
     hmap->size = size;
