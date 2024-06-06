@@ -5,7 +5,7 @@
 
 #include "MurmurHash3.h"
 
-#define LOAD_FACTOR (float)(0.5)           // 0-100
+#define LOAD_FACTOR (float)(0.5)  // 0-100
 #define MAXIMUM_SIZE 1073741824UL // maximum limit of hashmap; default 1GB
 // #define EMPTY (uint64_t)18446744073709551616
 #define EVICT 1
@@ -19,8 +19,8 @@ typedef uint32_t (*hash_function)(const void *key, int len, int seed);
 struct hash_map *KV_init(unsigned long size, hash_function hash_fn);
 int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len);
 void *KV_get(struct hash_map *hmap, char *key, int key_len);
-void KV_delete(struct hash_map *hmap, char *key, int key_len);
-void *find(struct hash_map *hmap, char *key, int key_len);
+int KV_delete(struct hash_map *hmap, char *key, int key_len);
+int64_t find(struct hash_map *hmap, char *key, int key_len);
 void KV_destroy(struct hash_map *hmap);
 void hash_map_resize(struct hash_map *hmap, int policy);
 
@@ -48,10 +48,21 @@ struct hash_map
     hash_function hash_fn;
 };
 
+uint32_t first_slot(uint32_t hash, int capacity)
+{
+    return hash & (capacity - 1);
+}
+
+uint32_t next_slot(uint32_t hash, int capacity)
+{
+    return (hash + 1) & (capacity - 1);
+}
+
 int resize_find_empty_slot(struct hash_map *hmap, char *buf, int buf_len, char *key, int key_len)
 {
     uint32_t hash = hmap->hash_fn(key, key_len, hmap->seed);
-    hash = hash & (hmap->capacity - 1);
+    hash = first_slot(hash, hmap->capacity);
+    uint32_t start = hash;
     void *entry = &buf[hash * sizeof(struct KV)];
 
     if (*(int8_t *)entry == EMPTY)
@@ -62,7 +73,11 @@ int resize_find_empty_slot(struct hash_map *hmap, char *buf, int buf_len, char *
     size_t i = 0;
     while (*(int8_t *)entry != EMPTY && i < hmap->capacity)
     {
-        hash = (hash + 1) & (hmap->capacity - 1);
+        hash = next_slot(hash, hmap->capacity);
+        if (hash == start)
+        {
+            break;
+        }
         entry = &buf[hash * sizeof(struct KV)];
         if (*(int8_t *)entry == EMPTY)
         {
@@ -79,7 +94,7 @@ void rehash_buf(struct hash_map *hmap, char *buf, int buf_len)
     for (size_t i = 0; i < buf_len / RESIZE_POLICY; i += sizeof(struct KV))
     {
         struct KV *entry = (struct KV *)&hmap->arr[i];
-        if (*(int8_t *)entry == EMPTY || entry == TOMBSTONE)
+        if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE)
         {
             continue;
         }
@@ -92,7 +107,8 @@ void rehash_buf(struct hash_map *hmap, char *buf, int buf_len)
 void hash_map_resize(struct hash_map *hmap, int policy)
 {
     size_t cap = hmap->capacity * policy * sizeof(struct KV);
-    if (cap > MAXIMUM_SIZE) {
+    if (cap > MAXIMUM_SIZE)
+    {
         printf("hash_map_resize: Maximum memory exceeded");
         exit(1);
     }
@@ -105,7 +121,9 @@ void hash_map_resize(struct hash_map *hmap, int policy)
     }
     memset(buf, EMPTY, cap);
 
+    hmap->size = hmap->size - (hmap->capacity * sizeof(struct KV));
     hmap->capacity = hmap->capacity * policy;
+    hmap->size += cap;
     rehash_buf(hmap, buf, cap);
     free(hmap->arr);
     hmap->arr = buf;
@@ -131,7 +149,7 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn)
         exit(1);
     }
     memset(hmap->arr, EMPTY, capacity * sizeof(struct KV));
-    hmap->size = 0;
+    hmap->size = capacity * sizeof(struct KV);
     hmap->seed = 1;
     hmap->capacity = capacity;
     return hmap;
@@ -152,10 +170,11 @@ uint32_t KV_hash_function(const void *key, int len, int seed)
 int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
 {
     uint32_t hash = hmap->hash_fn(key, key_len, hmap->seed);
-    hash = hash & (hmap->capacity - 1);
-    void *entry = &hmap->arr[hash * sizeof(struct KV)];
+    hash = first_slot(hash, hmap->capacity);
+    uint32_t start = hash;
+    struct KV *entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
 
-    if (*(int8_t *)entry == EMPTY)
+    if (*(int8_t *)entry == EMPTY || memcmp(entry->key, key, key_len) == 0)
     {
         return hash;
     }
@@ -163,9 +182,13 @@ int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
     size_t i = 0;
     while (*(int8_t *)entry != EMPTY && i < hmap->capacity)
     {
-        hash = (hash + 1) & (hmap->capacity - 1);
-        entry = &hmap->arr[hash * sizeof(struct KV)];
-        if (*(int8_t *)entry == EMPTY)
+        hash = next_slot(hash, hmap->capacity);
+        if (hash == start)
+        {
+            break;
+        }
+        entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
+        if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE)
         {
             return hash;
         }
@@ -203,63 +226,113 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
     int ret;
     struct KV *entry = NULL;
 
-    size = key_len + val_len + sizeof(struct KV);
+    // size = key_len + val_len + sizeof(struct KV);
     int slot = find_empty_slot(hmap, key, key_len);
 
     // KV already allocated during initialization. We just need to get our KV chunk
     entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
+    // printf("SZ: %d %d\n", key_len, val_len);
 
-    entry->key_len = key_len;
-    entry->val_len = val_len;
-    ret = entry_init(entry);
-    if (ret < 0)
+    if (*(int8_t *)entry == EMPTY)
     {
-        return ret;
+        size = key_len + val_len + sizeof(struct KV);
+        entry->key_len = key_len;
+        entry->val_len = val_len;
+        ret = entry_init(entry);
+        if (ret < 0)
+        {
+            return ret;
+        }
+        memcpy(entry->key, key, key_len);
+        memcpy(entry->val, val, val_len);
+        hmap->size += size;
+        hmap->len += 1;
+
+        // TODO: We can replace division later
+        float lf = (float)hmap->len / hmap->capacity;
+        if (lf >= LOAD_FACTOR)
+        {
+            printf("Resizing HashMap\n");
+            hash_map_resize(hmap, RESIZE_POLICY);
+        }
     }
-    memcpy(entry->key, key, key_len);
-    memcpy(entry->val, val, val_len);
-    hmap->size = size;
-    hmap->len += 1;
-
-    // TODO: We can replace division later
-    float lf = (float)hmap->len / hmap->capacity;
-    if (lf > LOAD_FACTOR)
+    else
     {
-        printf("Resizing HashMap\n");
-        hash_map_resize(hmap, RESIZE_POLICY);
+        char *temp = entry->val;
+        entry->val = (char *)malloc(val_len);
+        if (entry->val == NULL)
+        {
+            printf("KV_set: Unable to intialize entry value");
+            entry->val = temp;
+            return -1;
+        }
+        memcpy(entry->key, key, key_len);
+        memcpy(entry->val, val, val_len);
+        hmap->size -= entry->val_len;
+        entry->val_len = val_len;
+        hmap->size += val_len;
     }
     return 0;
 }
 
-void *find(struct hash_map *hmap, char *key, int key_len)
+int64_t find(struct hash_map *hmap, char *key, int key_len)
 {
     uint32_t hash = hmap->hash_fn(key, key_len, hmap->seed);
-    hash = hash & (hmap->capacity - 1);
+    hash = first_slot(hash, hmap->capacity);
+    uint32_t start = hash;
     struct KV *entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
 
-    if (key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0)
+    if (entry->key != TOMBSTONE && (key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0))
     {
-        return entry->val;
+        return hash;
     }
 
     size_t i = 0;
-    while ((*(int8_t *)entry != EMPTY || entry != TOMBSTONE) && i < hmap->capacity)
+    while ((*(int8_t *)entry != EMPTY || entry->key != TOMBSTONE) && i < hmap->capacity)
     {
-        hash = (hash + 1) & (hmap->capacity - 1);
-        entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
-        if (key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0)
+        hash = next_slot(hash, hmap->capacity);
+
+        // We need to stop the search where we started. If we get to the start point; the key does not exist
+        if (hash == start)
         {
-            return entry->val;
+            break;
+        }
+
+        entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
+        if (entry->key != TOMBSTONE && key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0)
+        {
+            return hash;
         }
         i = hash;
     }
 
-    return (void *)-1;
+    return -1;
 }
 
 void *KV_get(struct hash_map *hmap, char *key, int key_len)
 {
-    return find(hmap, key, key_len);
+    int64_t slot = find(hmap, key, key_len);
+    struct KV *entry = NULL;
+    if (slot <= -1)
+    {
+        return (void *)-1;
+    }
+    entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
+    return entry->val;
+}
+
+int KV_delete(struct hash_map *hmap, char *key, int key_len)
+{
+    struct KV *entry = NULL;
+    int64_t slot = find(hmap, key, key_len);
+    if (slot <= -1)
+    {
+        return -1;
+    }
+
+    entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
+    entry->key = TOMBSTONE;
+    return 0;
 }
 
 void KV_destroy(struct hash_map *hmap)
@@ -292,8 +365,8 @@ int set_int_val(struct hash_map *hmap, char *key, int key_len, int val)
 
 int main(int argc, char *argv[])
 {
-    char *keys[] = {"foo", "bar", "noop", "foo", "kai", "boop", "baruuituityuy"};
-    int vals[] = {100, 200, 300, 400, 500, 600, 700};
+    char *keys[] = {"foo", "bar", "noop", "foo1", "kai", "boop", "baruuituityuy", "Tosha"};
+    int vals[] = {100, 200, 300, 400, 500, 600, 700, 800};
 
     // printf("%ld\n\n\n", sizeof(keys));
 
