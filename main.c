@@ -231,7 +231,6 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
 
     // KV already allocated during initialization. We just need to get our KV chunk
     entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
-    // printf("SZ: %d %d\n", key_len, val_len);
 
     if (*(int8_t *)entry == EMPTY)
     {
@@ -258,12 +257,10 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
     }
     else
     {
-        char *temp = entry->val;
         entry->val = (char *)malloc(val_len);
         if (entry->val == NULL)
         {
             printf("KV_set: Unable to intialize entry value");
-            entry->val = temp;
             return -1;
         }
         memcpy(entry->key, key, key_len);
@@ -331,6 +328,7 @@ int KV_delete(struct hash_map *hmap, char *key, int key_len)
     }
 
     entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
+    free(entry->key);
     entry->key = TOMBSTONE;
     return 0;
 }
