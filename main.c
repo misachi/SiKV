@@ -297,7 +297,7 @@ int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
     uint32_t start = hash;
     struct KV *entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
 
-    if (*(int8_t *)entry == EMPTY || memcmp(entry->key, key, key_len) == 0)
+    if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE || (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0))
     {
         return hash;
     }
