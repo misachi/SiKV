@@ -1,74 +1,24 @@
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "MurmurHash3.h"
+#include "sikv.h"
 
-#define LOAD_FACTOR (float)(0.85) // 0-100
-#define MAXIMUM_SIZE 1073741824UL // maximum limit of hashmap; default 1GB
-// #define EMPTY (uint64_t)18446744073709551616
-#define EVICT 1
-#define RESIZE_POLICY 2
-#define EMPTY (int8_t)(-1)
-#define TOMBSTONE NULL
-#define SUCCESS (void *)-1
+static struct hash_map *HMAP = NULL;
 
-typedef enum
+void set_hmap(struct hash_map *hmap)
 {
-    CMD_SET,
-    CMD_GET,
-    CMD_PUT,
-    CMD_DEL,
-    CMD_NOOP
-} KV_CMD;
-typedef enum
+    if (HMAP == NULL)
+    {
+        HMAP = hmap;
+    }
+}
+
+struct hash_map *get_hmap()
 {
-    KV_INT16,
-    KV_INT32,
-    KV_INT64,
-    KV_FLOAT,
-    KV_DOUBLE,
-    KV_STRING
-} KV_TYPE;
-
-struct hash_map;
-typedef uint32_t (*hash_function)(const void *key, int len, int seed);
-
-struct hash_map *KV_init(unsigned long size, hash_function hash_fn, KV_TYPE val_type);
-int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len);
-void *KV_get(struct hash_map *hmap, char *key, int key_len);
-int KV_delete(struct hash_map *hmap, char *key, int key_len);
-int64_t find(struct hash_map *hmap, char *key, int key_len);
-void KV_destroy(struct hash_map *hmap);
-void hash_map_resize(struct hash_map *hmap, int policy);
-
-struct KV
-{
-    char *key;
-    char *val;
-    int32_t key_len;
-    int32_t val_len;
-    // uint32_t hash;
-};
-
-struct hash_map
-{
-    int size; // size of hash map in bytes
-    int len;
-    int capacity;
-    int seed;
-    KV_TYPE val_type;
-#ifdef ALLOW_STATS
-    uint64_t misses;
-    uint64_t hits;
-    uint64_t ref_count;
-#endif
-    char *arr; // array elements
-    hash_function hash_fn;
-};
-
-struct hash_map *HMAP = NULL;
+    return HMAP;
+}
 
 size_t get_type_size(KV_TYPE val_type, char *val)
 {
@@ -120,8 +70,8 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
 {
     if (argc < 1)
     {
-        printf("Command is required\n");
-        exit(1);
+        perror("Command is required\n");
+        exit(EXIT_FAILURE);
     }
 
     char *cmd = argv[0];
@@ -134,11 +84,11 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
     case CMD_PUT:
         if (argc < 3)
         {
-            printf("SET Error: Value was not provided\n");
+            perror("SET Error: Value was not provided\n");
             return NULL;
         }
 
-        ret = KV_set(hmap, argv[1], strlen(argv[1]), argv[2], get_type_size(hmap->val_type, argv[2]));
+        ret = KV_set(hmap, argv[1], strlen(argv[1]), argv[2], get_type_size(hmap->val_type, argv[2]) + 1);
         if (ret == 0)
         {
             return SUCCESS;
@@ -147,14 +97,14 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
     case CMD_GET:
         if (argc < 2)
         {
-            printf("GET Error: Key was not provided\n");
+            perror("GET Error: Key was not provided\n");
             break;
         }
         return KV_get(hmap, argv[1], strlen(argv[1]));
     case CMD_DEL:
         if (argc < 2)
         {
-            printf("DELETE Error: Key was not provided\n");
+            perror("DELETE Error: Key was not provided\n");
             break;
         }
         ret = KV_delete(hmap, argv[1], strlen(argv[1]));
@@ -164,7 +114,7 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
         }
         break;
     default:
-        printf("Invalid command\n");
+        perror("Invalid command\n");
         break;
     }
     return NULL;
@@ -231,15 +181,15 @@ void hash_map_resize(struct hash_map *hmap, int policy)
     size_t cap = hmap->capacity * policy * sizeof(struct KV);
     if (cap > MAXIMUM_SIZE)
     {
-        printf("hash_map_resize: Maximum memory exceeded");
-        exit(1);
+        perror("hash_map_resize: Maximum memory exceeded");
+        exit(EXIT_FAILURE);
     }
     char *buf = (char *)malloc(cap);
     if (buf == NULL)
     {
-        printf("hash_map_resize: Unable to resize hash table");
+        perror("hash_map_resize: Unable to resize hash table");
         KV_destroy(hmap);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     memset(buf, EMPTY, cap);
 
@@ -256,8 +206,8 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     struct hash_map *hmap = (struct hash_map *)malloc(sizeof(struct hash_map));
     if (hmap == NULL)
     {
-        printf("KV_hash_map_init: Unable to initialize hash table");
-        exit(1);
+        perror("KV_hash_map_init: Unable to initialize hash table");
+        exit(EXIT_FAILURE);
     }
 
     memset(hmap, 0, sizeof(struct hash_map));
@@ -266,16 +216,17 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     hmap->arr = (char *)malloc(capacity * sizeof(struct KV));
     if (hmap->arr == NULL)
     {
-        printf("KV_hash_map_init: Unable to initialize array");
+        perror("KV_hash_map_init: Unable to initialize array");
         free(hmap);
-        exit(1);
+        exit(EXIT_FAILURE);
     }
     memset(hmap->arr, EMPTY, capacity * sizeof(struct KV));
     hmap->size = capacity * sizeof(struct KV);
     hmap->seed = 1;
     hmap->capacity = capacity;
     hmap->val_type = val_type;
-    return hmap;
+    set_hmap(hmap);
+    return get_hmap();
 }
 
 bool max_size_reached(int sz, int max_sz)
@@ -327,14 +278,14 @@ int entry_init(struct KV *entry)
     entry->key = (char *)malloc(entry->key_len);
     if (entry->key == NULL)
     {
-        printf("entry_init: Unable to intialize entry key");
+        perror("entry_init: Unable to intialize entry key");
         return -1;
     }
 
     entry->val = (char *)malloc(entry->val_len);
     if (entry->val == NULL)
     {
-        printf("entry_init: Unable to intialize entry value");
+        perror("entry_init: Unable to intialize entry value");
         free(entry->key);
         return -1;
     }
@@ -365,6 +316,7 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
         }
         memcpy(entry->key, key, key_len);
         memcpy(entry->val, val, val_len);
+        entry->val[val_len - 1] = '\0';
         hmap->size += size;
         hmap->len += 1;
 
@@ -381,7 +333,7 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
         entry->val = (char *)malloc(val_len);
         if (entry->val == NULL)
         {
-            printf("KV_set: Unable to intialize entry value");
+            perror("KV_set: Unable to intialize entry value");
             return -1;
         }
         memcpy(entry->key, key, key_len);
@@ -393,7 +345,7 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
     return 0;
 }
 
-int64_t find(struct hash_map *hmap, char *key, int key_len)
+int find(struct hash_map *hmap, char *key, int key_len)
 {
     uint32_t hash = hmap->hash_fn(key, key_len, hmap->seed);
     hash = first_slot(hash, hmap->capacity);
@@ -484,36 +436,8 @@ int set_int_val(struct hash_map *hmap, char *key, int key_len, int val)
 
 int main(int argc, char *argv[])
 {
-    char *keys[] = {"foo", "bar", "noop", "foo1", "kai", "boop", "baruuituityuy", "Tosha"};
-    int16_t vals[] = {100, 200, 300, 400, 500, 600, 700, 800};
 
-    struct hash_map *hmap = KV_init(4, KV_hash_function, KV_INT16);
-
-    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++)
-    {
-        char *v[] = {"SET", keys[i], (char *)&vals[i]};
-        process_cmd(hmap, 3, v);
-        // set_int_val(hmap, keys[i], strlen(keys[i]), vals[i]);
-    }
-
-    char *v[] = {"DEL", "bar"};
-    process_cmd(hmap, 2, v);
-
-    for (size_t i = 0; i < sizeof(keys) / sizeof(keys[0]); i++)
-    {
-        char *v[] = {"GET", keys[i]};
-        char *ret = process_cmd(hmap, 2, v);
-        if (ret == NULL)
-        {
-            printf("Not found\n");
-        }
-        else
-        {
-            printf("%s: %d\n", keys[i], *(int16_t *)ret);
-        }
-    }
-
-    KV_destroy(hmap);
+    serve(); // We should never return
 
     return 0;
 }
