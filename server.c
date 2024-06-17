@@ -66,8 +66,8 @@ char **parse_input(char *str, size_t len)
             buf[j] = realloc(buf[j], (i - off) + 1);
             if (buf[j] == NULL)
             {
-                perror("failed realloc");
                 free(buf);
+                perror("failed realloc");
                 exit(EXIT_FAILURE);
             }
             memcpy(buf[j], (char *)&start[off], i - off);
@@ -80,8 +80,8 @@ char **parse_input(char *str, size_t len)
             buf[j] = realloc(buf[j], (i - off) + 1);
             if (buf[j] == NULL)
             {
-                perror("failed realloc");
                 free(buf);
+                perror("failed realloc");
                 exit(EXIT_FAILURE);
             }
 
@@ -148,7 +148,7 @@ void serve()
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stderr, "SiKV InMemory Database Server\nListening for connections on port %d\n", PORT);
+    printf("SiKV InMemory Database Server\nListening for connections on port %d\n", PORT);
     struct hash_map *hmap = KV_init(4, KV_hash_function, KV_STRING);
 
     while (1)
@@ -169,7 +169,7 @@ void serve()
                     printf("%s\n", ret);
                     if (write(client_fd, ret, strlen(ret)) == -1)
                     {
-                        perror("write");
+                        fprintf(stderr, "write error");
                     }
                 }
                 else if (ret == SUCCESS)
@@ -178,7 +178,7 @@ void serve()
                     printf("%s\n", ret);
                     if (write(client_fd, ret, strlen(ret)) == -1)
                     {
-                        perror("write");
+                        fprintf(stderr, "write error");
                     }
                 }
                 else
@@ -189,7 +189,7 @@ void serve()
                     temp[n] = '\n';
                     if (write(client_fd, temp, n + 1) == -1)
                     {
-                        perror("write");
+                        fprintf(stderr, "write error");
                     }
                     free(temp);
                 }

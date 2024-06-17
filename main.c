@@ -84,7 +84,7 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
     case CMD_PUT:
         if (argc < 3)
         {
-            perror("SET Error: Value was not provided\n");
+            fprintf(stderr, "SET Error: Value was not provided\n");
             return NULL;
         }
 
@@ -97,14 +97,14 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
     case CMD_GET:
         if (argc < 2)
         {
-            perror("GET Error: Key was not provided\n");
+            fprintf(stderr, "GET Error: Key was not provided\n");
             break;
         }
         return KV_get(hmap, argv[1], strlen(argv[1]));
     case CMD_DEL:
         if (argc < 2)
         {
-            perror("DELETE Error: Key was not provided\n");
+            fprintf(stderr, "DELETE Error: Key was not provided\n");
             break;
         }
         ret = KV_delete(hmap, argv[1], strlen(argv[1]));
@@ -114,7 +114,7 @@ void *process_cmd(struct hash_map *hmap, int argc, char *argv[])
         }
         break;
     default:
-        perror("Invalid command\n");
+        fprintf(stderr, "Invalid command\n");
         break;
     }
     return NULL;
@@ -188,7 +188,6 @@ void hash_map_resize(struct hash_map *hmap, int policy)
     if (buf == NULL)
     {
         perror("hash_map_resize: Unable to resize hash table");
-        KV_destroy(hmap);
         exit(EXIT_FAILURE);
     }
     memset(buf, EMPTY, cap);
@@ -216,8 +215,8 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     hmap->arr = (char *)malloc(capacity * sizeof(struct KV));
     if (hmap->arr == NULL)
     {
-        perror("KV_hash_map_init: Unable to initialize array");
         free(hmap);
+        perror("KV_hash_map_init: Unable to initialize array");
         exit(EXIT_FAILURE);
     }
     memset(hmap->arr, EMPTY, capacity * sizeof(struct KV));
@@ -278,14 +277,14 @@ int entry_init(struct KV *entry)
     entry->key = (char *)malloc(entry->key_len);
     if (entry->key == NULL)
     {
-        perror("entry_init: Unable to intialize entry key");
+        fprintf(stderr, "entry_init: Unable to intialize entry key");
         return -1;
     }
 
     entry->val = (char *)malloc(entry->val_len);
     if (entry->val == NULL)
     {
-        perror("entry_init: Unable to intialize entry value");
+        fprintf(stderr, "entry_init: Unable to intialize entry value");
         free(entry->key);
         return -1;
     }
@@ -333,7 +332,7 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
         entry->val = (char *)malloc(val_len);
         if (entry->val == NULL)
         {
-            perror("KV_set: Unable to intialize entry value");
+            fprintf(stderr, "KV_set: Unable to intialize entry value");
             return -1;
         }
         memcpy(entry->key, key, key_len);

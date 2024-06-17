@@ -47,14 +47,14 @@ int main(int argc, char *argv[])
     hostent = gethostbyname(server_hostname);
     if (hostent == NULL)
     {
-        fprintf(stderr, "gethostbyname: %s\n", server_hostname);
+        fprintf(stderr, "gethostbyname: %s: %s\n", server_hostname, strerror(errno));
         exit(EXIT_FAILURE);
     }
 
     in_addr = inet_addr(inet_ntoa(*(struct in_addr *)*(hostent->h_addr_list)));
     if (in_addr == (in_addr_t)-1)
     {
-        fprintf(stderr, "inet_addr: %s\n", *(hostent->h_addr_list));
+        fprintf(stderr, "inet_addr: %s: %s\n", *(hostent->h_addr_list), strerror(errno));
         exit(EXIT_FAILURE);
     }
 
@@ -68,11 +68,11 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    fprintf(stderr, "SiKV InMemory Database Client\nReady to accept input\n");
+    printf("SiKV InMemory Database Client\nReady to accept input\n");
 
     while (1)
     {
-        fprintf(stderr, ">> ");
+        printf(">> ");
         input_read = getline(&input_ptr, &input_read, stdin);
         if (input_read == -1)
         {
@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
         if (write(client_fd, input_ptr, input_read) == -1)
         {
-            perror("write");
+            fprintf(stderr, "write error");
             break;
         }
 
