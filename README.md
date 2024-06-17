@@ -9,6 +9,13 @@ Ubuntu 20.04.6 LTS
 Linux 5.4.0-182-generic
 ```
 
+# Installing Dependencies[Ubuntu]
+This is for Ubuntu users only. To install all requirements:
+```
+sudo chmod +x install_dependencies_ubuntu.sh
+./install_dependencies_ubuntu.sh
+```
+
 # Running the server
 ```
 make
