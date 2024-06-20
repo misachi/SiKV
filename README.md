@@ -28,6 +28,15 @@ make client
 ./client.o <server_name> <port> e.g ./client.o 127.0.0.1 8007
 ```
 
+# Examples
+
+## Server
+![Server Demo](assets/sikv-server.gif)
+
+## Client
+![Client Demo](assets/sikv-client.gif)
+
+
 ### Check for potential memory leaks
 ```
 make memcheck  # server

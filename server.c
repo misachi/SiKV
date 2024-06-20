@@ -174,7 +174,7 @@ void serve()
                 }
                 else if (ret == SUCCESS)
                 {
-                    ret = "SET Ok\n";
+                    ret = "Ok\n";
                     printf("%s\n", ret);
                     if (write(client_fd, ret, strlen(ret)) == -1)
                     {
