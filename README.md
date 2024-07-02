@@ -16,24 +16,12 @@ sudo chmod +x install_dependencies_ubuntu.sh
 ./install_dependencies_ubuntu.sh
 ```
 
-# Running the server
-```
-make
-./main.o
-```
-
-# Running the client
-```
-make client
-./client.o <server_name> <port> e.g ./client.o 127.0.0.1 8007
-```
-
 # Examples
 
-## Server
+## Running the server
 ![Server Demo](assets/sikv-server.gif)
 
-## Client
+## Running the client
 ![Client Demo](assets/sikv-client.gif)
 
 
