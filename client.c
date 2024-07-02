@@ -83,7 +83,20 @@ int main(int argc, char *argv[])
 
         if (input_read == 1)
         {
-            close(client_fd);
+            continue;
+        }
+
+        char quit[] = "quit";
+        if (input_read == sizeof(quit) && memcmp(input_ptr, quit, input_read - 1) == 0)
+        {
+            fprintf(stderr, "quitting...");
+            break;
+        }
+
+        char exit[] = "exit";
+        if (input_read == sizeof(exit) && memcmp(input_ptr, exit, input_read - 1) == 0)
+        {
+            fprintf(stderr, "exiting...");
             break;
         }
 
@@ -97,7 +110,7 @@ int main(int argc, char *argv[])
         {
             if (buf[nr_read - 1] == '\n')
             {
-                buf[nr_read-1] = '\0';
+                buf[nr_read - 1] = '\0';
                 printf("%s\n", buf);
                 break;
             }

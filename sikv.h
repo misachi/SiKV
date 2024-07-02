@@ -2,6 +2,7 @@
 #define _KV_DB_
 
 #include <stdlib.h>
+#include <stdatomic.h>
 
 #define LOAD_FACTOR (float)(0.85) // 0-100
 #define MAXIMUM_SIZE 1073741824UL // maximum limit of hashmap; default 1GB

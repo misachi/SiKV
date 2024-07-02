@@ -14,7 +14,7 @@
 
 size_t strlen0(char *buf)
 {
-    size_t len;
+    size_t len = 0;
     while (*buf != '\0')
     {
         buf++;
@@ -35,7 +35,10 @@ void free_input_buffer(char **input_buf)
 
 static void sigint_handler(int sig)
 {
-    write(STDERR_FILENO, "SIGINT\nCleaning up....\n", 23);
+    if (write(STDERR_FILENO, "SIGINT\nCleaning up....\n", 23) == -1)
+    {
+        fprintf(stderr, "write error");
+    }
     KV_destroy(get_hmap());
     exit(EXIT_FAILURE);
 }
