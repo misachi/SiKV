@@ -39,7 +39,7 @@ static void sigint_handler(int sig)
     {
         fprintf(stderr, "write error");
     }
-    KV_destroy(get_hmap());
+    KV_destroy();
     exit(EXIT_FAILURE);
 }
 
@@ -100,8 +100,20 @@ char **parse_input(char *str, size_t len)
     return buf;
 }
 
-void serve()
+void serve(int argc, char *argv[])
 {
+    if (argc < 3)
+    {
+        perror("hostname and port are required");
+        exit(EXIT_FAILURE);
+    }
+
+    if (MIN_ENTRY_NUM && CHECK_POWER_OF_2(MIN_ENTRY_NUM) != 0)
+    {
+        fprintf(stderr, "ERROR: Hmap size must be a power of two\n");
+        exit(EXIT_FAILURE);
+    }
+
     char buf[BUFFSZ];
     int server_fd, client_fd;
     size_t nr_read;
@@ -109,6 +121,7 @@ void serve()
     socklen_t client_len;
     struct protoent *proto;
     struct sockaddr_in server_sock, client_sock;
+    unsigned short server_port = strtol(argv[2], NULL, 10);
 
     proto = getprotobyname("tcp");
     if (proto == NULL)
@@ -132,7 +145,7 @@ void serve()
 
     server_sock.sin_family = AF_INET;
     server_sock.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_sock.sin_port = htons(PORT);
+    server_sock.sin_port = htons(server_port);
 
     if (bind(server_fd, (struct sockaddr *)&server_sock, sizeof(struct sockaddr_in)) == -1)
     {
@@ -152,7 +165,7 @@ void serve()
     }
 
     printf("SiKV InMemory Database Server\nListening for connections on port %d\n", PORT);
-    struct hash_map *hmap = KV_init(4, KV_hash_function, KV_STRING);
+    struct hash_map *hmap = KV_init(MIN_ENTRY_NUM, KV_hash_function, KV_STRING);
 
     while (1)
     {
@@ -188,6 +201,11 @@ void serve()
                 {
                     size_t n = strlen(ret);
                     char *temp = malloc(n + 1);
+                    if (temp == NULL)
+                    {
+                        perror("malloc");
+                    }
+
                     memcpy(temp, ret, n);
                     temp[n] = '\n';
                     if (write(client_fd, temp, n + 1) == -1)
@@ -202,5 +220,5 @@ void serve()
         }
         close(client_fd);
     }
-    KV_destroy(hmap);
+    KV_destroy();
 }
