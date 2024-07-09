@@ -68,6 +68,9 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
 #endif
     hmap->len = 0;
     hmap->size = capacity * sizeof(struct KV);
+#if SIKV_VERBOSE
+        printf("Initializing array of size=%i\n", hmap->size);
+#endif
     hmap->seed = 1;
     hmap->capacity = capacity;
     hmap->val_type = val_type;
@@ -225,7 +228,7 @@ static int resize_find_empty_slot(struct hash_map *hmap, char *buf, int buf_len,
     return -1;
 }
 
-static void rehash_buf(struct hash_map *hmap, char *buf, int buf_len)
+static __attribute__((unused)) void rehash_buf(struct hash_map *hmap, char *buf, int buf_len)
 {
     for (size_t i = 0; i < buf_len / RESIZE_POLICY; i += sizeof(struct KV))
     {
@@ -263,9 +266,10 @@ static void hash_map_resize(struct hash_map *hmap, int policy)
     memset(buf, EMPTY, cap);
 
     hmap->size = hmap->size - (hmap->capacity * sizeof(struct KV));
+    memcpy(buf, hmap->arr, hmap->capacity * sizeof(struct KV));
     hmap->capacity = hmap->capacity * policy;
     hmap->size += cap;
-    rehash_buf(hmap, buf, cap);
+    // rehash_buf(hmap, buf, cap);
 #if !USE_CUSTOM_ALLOC
     free(hmap->arr);
 #else
@@ -366,7 +370,10 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
 
     if (*(int8_t *)entry == EMPTY)
     {
-        size = key_len + val_len + sizeof(struct KV);
+        size = key_len + val_len;
+#if SIKV_VERBOSE
+        printf("Writing object of size=%zu\n", size);
+#endif
         entry->key_len = key_len;
         entry->val_len = val_len;
         ret = entry_init(hmap, entry);
@@ -384,10 +391,10 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
         float lf = (float)hmap->len / hmap->capacity;
         if (lf >= LOAD_FACTOR)
         {
-            temp = hmap->size;
+            temp = hmap->capacity;
             hash_map_resize(hmap, RESIZE_POLICY);
-#ifdef SIKV_VERBOSE
-            printf("Resizing HashMap from size = %i to size = %i\n", temp, hmap->size);
+#if SIKV_VERBOSE
+            printf("Resizing HashMap from array size=%zu to array size=%zu; current memory usage for data=%i bytes\n", temp * sizeof(struct KV), hmap->capacity * sizeof(struct KV), hmap->size);
 #endif
         }
     }

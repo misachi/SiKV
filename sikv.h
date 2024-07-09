@@ -5,18 +5,18 @@
 #include <stdbool.h>
 // #include <stdatomic.h>
 
-#define LOAD_FACTOR (float)(0.85) // 0-100
+#define LOAD_FACTOR (float)0.85 // 0-100
 #define MAXIMUM_SIZE 1073741824UL // maximum limit of hashmap; default 1GB
 // #define EMPTY (uint64_t)18446744073709551616
 #define EVICT 1
 #define RESIZE_POLICY 2
-#define EMPTY (int8_t)(-1)
+#define EMPTY (int8_t)-1
 #define TOMBSTONE NULL
 #define SUCCESS (void *)-1
 #define BUFFSZ 1024
-#define SIKV_VERBOSE (int)(1)
-#define MIN_ENTRY_NUM (uint64_t)16
-#define CHECK_POWER_OF_2(num) ((num) & ((num) - (int)1))
+#define SIKV_VERBOSE 1
+#define MIN_ENTRY_NUM 4UL
+#define CHECK_POWER_OF_2(num) ((num) & ((num) - 1L))
 #define USE_CUSTOM_ALLOC 0
 
 typedef enum
