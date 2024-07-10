@@ -7,6 +7,7 @@ Tested on my laptop installed with AMD Ryzen 7 5700U processor running the follo
 ```
 Ubuntu 20.04.6 LTS
 Linux 5.4.0-182-generic
+GCC v9.4.0
 ```
 
 # Installing Dependencies
@@ -15,7 +16,10 @@ To install all requirements[Tested on Ubuntu]:
 sudo chmod +x install_dependencies_ubuntu.sh
 ./install_dependencies_ubuntu.sh
 ```
-To use the custom allocator. Check the documentation on: [Allocator](https://github.com/misachi/allocator)
+
+To use the custom allocator. You need to pass the `USE_CUSTOM_ALLOC=yes` flag like this `make USE_CUSTOM_ALLOC=yes`. Check the documentation for [liballoc](https://github.com/misachi/allocator) on how to install it.
+
+You may need to add `/usr/local/lib` to your linker path with `ldconfig` command -- This might require user with `sudo` privileges. 
 
 # Examples
 

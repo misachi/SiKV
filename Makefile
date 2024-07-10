@@ -1,9 +1,8 @@
 CC := gcc
 BUILD_ARGS := -g -O2 \
-	-fsanitize=address \
 	-Werror -Wall
 TEST_BUILD_ARGS := -ggdb \
-	-Werror -Wall
+	-Werror -Wall -fsanitize=address
 VALGRIND_CMD := valgrind -s --track-origins=yes --leak-check=yes --leak-check=full --show-leak-kinds=all
 SOURCES := $(wildcard *.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
@@ -11,8 +10,16 @@ DEPENDS := $(patsubst %.c,%.d,$(SOURCES))
 
 .PHONY: clean
 
+ifeq ($(USE_CUSTOM_ALLOC),yes)
 main.out: $(OBJECTS)
 	$(CC) $(BUILD_ARGS) main.o server.o MurmurHash3.o -o main.out -lalloc
+else
+main.out: $(OBJECTS)
+	$(CC) $(BUILD_ARGS) main.o server.o MurmurHash3.o -o main.out
+endif
+
+debug:
+	$(CC) $(TEST_BUILD_ARGS) main.o server.o MurmurHash3.o -o main.out
 
 # Recompile when headers change
 # - is used to ignore if some dependencies are not found
