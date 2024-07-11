@@ -42,10 +42,9 @@ typedef uint32_t (*hash_function)(const void *key, int len, int seed);
 
 struct KV
 {
-    char *key;
-    char *val;
     int32_t key_len;
     int32_t val_len;
+    char *data;
 };
 
 struct KV_item_array

@@ -69,7 +69,7 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     hmap->len = 0;
     hmap->size = capacity * sizeof(struct KV);
 #if SIKV_VERBOSE
-        printf("Initializing array of size=%i\n", hmap->size);
+    printf("Initializing array of size=%i\n", hmap->size);
 #endif
     hmap->seed = 1;
     hmap->capacity = capacity;
@@ -233,11 +233,11 @@ static __attribute__((unused)) void rehash_buf(struct hash_map *hmap, char *buf,
     for (size_t i = 0; i < buf_len / RESIZE_POLICY; i += sizeof(struct KV))
     {
         struct KV *entry = (struct KV *)&hmap->arr[i];
-        if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE)
+        if (*(int8_t *)entry == EMPTY || entry->data == TOMBSTONE)
         {
             continue;
         }
-        int slot = resize_find_empty_slot(hmap, buf, buf_len, entry->key, entry->key_len);
+        int slot = resize_find_empty_slot(hmap, buf, buf_len, entry->data, entry->key_len);
 
         memcpy(&buf[slot * sizeof(struct KV)], entry, sizeof(struct KV));
     }
@@ -297,7 +297,7 @@ static int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
     uint32_t start = hash;
     struct KV *entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
 
-    if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE || (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0))
+    if (*(int8_t *)entry == EMPTY || entry->data == TOMBSTONE || (entry->key_len == key_len && memcmp(entry->data, key, key_len) == 0))
     {
         return hash;
     }
@@ -311,7 +311,7 @@ static int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
             break;
         }
         entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
-        if (*(int8_t *)entry == EMPTY || entry->key == TOMBSTONE)
+        if (*(int8_t *)entry == EMPTY || entry->data == TOMBSTONE)
         {
             return hash;
         }
@@ -323,36 +323,50 @@ static int find_empty_slot(struct hash_map *hmap, char *key, int key_len)
 
 static int entry_init(struct hash_map *hmap, struct KV *entry)
 {
-    // TODO: Allocate both key and value on the same chunk
+    size_t size = entry->key_len + entry->val_len;
+    char *data = NULL;
+
 #if !USE_CUSTOM_ALLOC
-    entry->key = (char *)malloc(entry->key_len);
+    // entry->key = (char *)malloc(entry->key_len);
+    data = (char *)malloc(size);
 #else
-    entry->key = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, entry->key_len);
+    // entry->key = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, entry->key_len);
+    data = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, size);
 #endif
 
-    if (entry->key == NULL)
+    if (data == NULL)
     {
-        fprintf(stderr, "entry_init: Unable to intialize entry key");
+        fprintf(stderr, "entry_init: Unable to intialize data");
         return -1;
     }
 
-#if !USE_CUSTOM_ALLOC
-    entry->val = (char *)malloc(entry->val_len);
-#else
-    entry->val = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, entry->val_len);
-#endif
+    entry->data = data;
 
-    if (entry->val == NULL)
-    {
-        fprintf(stderr, "entry_init: Unable to intialize entry value");
-#if !USE_CUSTOM_ALLOC
-        // free(entry->key);
-#else
-        KV_free((struct KV_alloc_pool *)hmap->pool, entry->key);
-#endif
-        return -1;
-    }
     return 0;
+
+    //     if (entry->key == NULL)
+    //     {
+    //         fprintf(stderr, "entry_init: Unable to intialize entry key");
+    //         return -1;
+    //     }
+
+    // #if !USE_CUSTOM_ALLOC
+    //     entry->val = (char *)malloc(entry->val_len);
+    // #else
+    //     entry->val = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, entry->val_len);
+    // #endif
+
+    //     if (entry->val == NULL)
+    //     {
+    //         fprintf(stderr, "entry_init: Unable to intialize entry value");
+    // #if !USE_CUSTOM_ALLOC
+    //         // free(entry->key);
+    // #else
+    //         KV_free((struct KV_alloc_pool *)hmap->pool, entry->key);
+    // #endif
+    //         return -1;
+    //     }
+    //     return 0;
 
     // char *chunk = (char *)malloc(e->key_len + e->val_len);
 }
@@ -367,10 +381,10 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
 
     // KV already allocated during initialization. We just need to get our KV chunk
     struct KV *entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
+    size = key_len + val_len;
 
     if (*(int8_t *)entry == EMPTY)
     {
-        size = key_len + val_len;
 #if SIKV_VERBOSE
         printf("Writing object of size=%zu\n", size);
 #endif
@@ -381,9 +395,9 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
         {
             return ret;
         }
-        memcpy(entry->key, key, key_len);
-        memcpy(entry->val, val, val_len);
-        entry->val[val_len - 1] = '\0';
+        memcpy(entry->data, key, key_len);
+        memcpy((char *)&entry->data[key_len], val, val_len);
+        entry->data[size - 1] = '\0';
         hmap->size += size;
         hmap->len += 1;
 
@@ -401,20 +415,21 @@ int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len
     else
     {
 #if !USE_CUSTOM_ALLOC
-        entry->val = (char *)malloc(val_len);
+        entry->data = (char *)malloc(size);
 #else
-        entry->val = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, val_len);
+        entry->data = (char *)KV_malloc((struct KV_alloc_pool *)hmap->pool, size);
 #endif
-        if (entry->val == NULL)
+        if (entry->data == NULL)
         {
             fprintf(stderr, "KV_set: Unable to intialize entry value");
             return -1;
         }
-        memcpy(entry->key, key, key_len);
-        memcpy(entry->val, val, val_len);
-        hmap->size -= entry->val_len;
+
+        memcpy(entry->data, key, key_len);
+        memcpy((char *)&entry->data[key_len], val, val_len);
+        // hmap->size -= entry->val_len;
         entry->val_len = val_len;
-        hmap->size += val_len;
+        hmap->size += size;
     }
     return 0;
 }
@@ -425,14 +440,16 @@ static int find(struct hash_map *hmap, char *key, int key_len)
     hash = first_slot(hash, hmap->capacity);
     uint32_t start = hash;
     struct KV *entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
+    // char key[key_len];
+    // memcpy(key, entry->data, key_len);
 
-    if (entry->key != TOMBSTONE && (key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0))
+    if (entry->data != TOMBSTONE && (key_len == entry->key_len && memcmp(entry->data, key, entry->key_len) == 0))
     {
         return hash;
     }
 
     size_t i = 0;
-    while ((*(int8_t *)entry != EMPTY || entry->key != TOMBSTONE) && i < hmap->capacity)
+    while ((*(int8_t *)entry != EMPTY || entry->data != TOMBSTONE) && i < hmap->capacity)
     {
         hash = next_slot(hash, hmap->capacity);
 
@@ -443,7 +460,7 @@ static int find(struct hash_map *hmap, char *key, int key_len)
         }
 
         entry = (struct KV *)&hmap->arr[hash * sizeof(struct KV)];
-        if (entry->key != TOMBSTONE && key_len == entry->key_len && memcmp(entry->key, key, entry->key_len) == 0)
+        if (entry->data != TOMBSTONE && key_len == entry->key_len && memcmp(entry->data, key, entry->key_len) == 0)
         {
             return hash;
         }
@@ -462,7 +479,7 @@ void *KV_get(struct hash_map *hmap, char *key, int key_len)
         return NULL;
     }
     entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
-    return entry->val;
+    return (void *)&entry->data[key_len];
 }
 
 int KV_delete(struct hash_map *hmap, char *key, int key_len)
@@ -476,11 +493,12 @@ int KV_delete(struct hash_map *hmap, char *key, int key_len)
 
     entry = (struct KV *)&hmap->arr[slot * sizeof(struct KV)];
 #if !USE_CUSTOM_ALLOC
-    free(entry->key);
+    free(entry->data);
 #else
-    KV_free((struct KV_alloc_pool *)hmap->pool, entry->key);
+    KV_free((struct KV_alloc_pool *)hmap->pool, entry->data);
 #endif
-    entry->key = TOMBSTONE;
+    hmap->size -= (entry->key_len + entry->val_len);
+    entry->data = TOMBSTONE;
     return 0;
 }
 
@@ -496,8 +514,8 @@ void KV_destroy()
             if (hmap->arr[i] != EMPTY)
             {
                 struct KV *entry = (struct KV *)&hmap->arr[i];
-                free(entry->key);
-                free(entry->val);
+                free(entry->data);
+                // free(entry->val);
             }
         }
         free(hmap->arr);
