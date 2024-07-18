@@ -7,7 +7,7 @@ Tested on my laptop installed with AMD Ryzen 7 5700U processor running the follo
 ```
 Ubuntu 20.04.6 LTS
 Linux 5.4.0-182-generic
-GCC v9.4.0
+GCC v11.4.0
 ```
 
 # Installing Dependencies
@@ -17,9 +17,11 @@ sudo chmod +x install_dependencies_ubuntu.sh
 ./install_dependencies_ubuntu.sh
 ```
 
-To use the custom allocator. You need to pass the `USE_CUSTOM_ALLOC=yes` flag like this `make USE_CUSTOM_ALLOC=yes`. Check the documentation for [liballoc](https://github.com/misachi/allocator) on how to install it.
+Default is to use the custom allocator. You need to pass the `USE_CUSTOM_ALLOC=yes` flag like this `make USE_CUSTOM_ALLOC=yes`. Check the documentation for [liballoc](https://github.com/misachi/allocator) on how to install it. You also need to set `USE_CUSTOM_ALLOC` macro in `sikv.h` to 1 or a value greater than zero
 
-You may need to add `/usr/local/lib` to your linker path with `ldconfig` command -- This might require user with `sudo` privileges. 
+If you want to use plain `malloc` from the standard lib instead: Set `USE_CUSTOM_ALLOC` macro in `sikv.h` to zero or value below zero. Then just run `make`
+
+You may need to add `/usr/local/lib` to your linker path with `ldconfig` command -- This might require user with `sudo` privileges as follows: `sudo ldconfig /usr/local/lib/`
 
 # Examples
 

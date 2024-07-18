@@ -17,7 +17,7 @@
 #define SIKV_VERBOSE 1
 #define MIN_ENTRY_NUM 4UL
 #define CHECK_POWER_OF_2(num) ((num) & ((num) - 1L))
-#define USE_CUSTOM_ALLOC 0
+#define USE_CUSTOM_ALLOC 1
 
 typedef enum
 {
