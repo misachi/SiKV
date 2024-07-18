@@ -49,7 +49,7 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
         free(hmap);
         exit(EXIT_FAILURE);
     }
-    memset(pool->data, EMPTY, MIN_ALLOCATION_POOL_SIZE + 1);
+    memset(pool->data, EMPTY, MIN_ALLOCATION_POOL_SIZE);
     hmap->pool = (char *)pool;
     hmap->arr = (char *)KV_malloc(pool, capacity * sizeof(struct KV));
 #else
