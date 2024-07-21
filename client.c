@@ -89,20 +89,20 @@ int main(int argc, char *argv[])
         char quit[] = "quit";
         if (input_read == sizeof(quit) && memcmp(input_ptr, quit, input_read - 1) == 0)
         {
-            fprintf(stderr, "quitting...");
+            fprintf(stderr, "quitting...\n");
             break;
         }
 
         char exit[] = "exit";
         if (input_read == sizeof(exit) && memcmp(input_ptr, exit, input_read - 1) == 0)
         {
-            fprintf(stderr, "exiting...");
+            fprintf(stderr, "exiting...\n");
             break;
         }
 
         if (write(client_fd, input_ptr, input_read) == -1)
         {
-            fprintf(stderr, "write error");
+            fprintf(stderr, "write error\n");
             break;
         }
 

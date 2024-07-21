@@ -22,7 +22,7 @@ void set_hmap(struct hash_map *hmap)
     }
 }
 
-struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE val_type)
+struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE val_type, bool allow_concurrent_access)
 {
     if (capacity && CHECK_POWER_OF_2(capacity) != 0)
     {
@@ -42,7 +42,7 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     hmap->hash_fn = hash_fn;
 
 #if USE_CUSTOM_ALLOC
-    struct KV_alloc_pool *pool = KV_alloc_pool_init(MIN_ALLOCATION_POOL_SIZE);
+    struct KV_alloc_pool *pool = KV_alloc_pool_init(MIN_ALLOCATION_POOL_SIZE, allow_concurrent_access);
     if (pool == NULL)
     {
         perror("KV_hash_map_init: Unable to initialize pool");
@@ -78,11 +78,11 @@ struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE 
     return hmap;
 }
 
-struct hash_map *KV_hmap()
+struct hash_map *KV_hmap(bool alloc_concurrent_access)
 {
     if (!HMAP)
     {
-        KV_init(MIN_ENTRY_NUM, KV_hash_function, KV_STRING);
+        KV_init(MIN_ENTRY_NUM, KV_hash_function, KV_STRING, alloc_concurrent_access);
     }
     return HMAP;
 }

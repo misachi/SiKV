@@ -74,7 +74,7 @@ struct hash_map
     hash_function hash_fn;
 };
 
-struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE val_type);
+struct hash_map *KV_init(unsigned long capacity, hash_function hash_fn, KV_TYPE val_type, bool alloc_concurrent_access);
 int KV_set(struct hash_map *hmap, char *key, int key_len, char *val, int val_len);
 void *KV_get(struct hash_map *hmap, char *key, int key_len);
 int KV_delete(struct hash_map *hmap, char *key, int key_len);
@@ -82,7 +82,7 @@ void KV_destroy();
 void *process_cmd(struct hash_map *hmap, int argc, char *argv[]);
 uint32_t KV_hash_function(const void *key, int len, int seed);
 void serve(int argc, char *argv[]);
-struct hash_map *KV_hmap();
+struct hash_map *KV_hmap(bool alloc_concurrent_access);
 void set_hmap(struct hash_map *hmap);
 
 #endif // _KV_DB_

@@ -7,6 +7,7 @@ VALGRIND_CMD := valgrind -s --track-origins=yes --leak-check=yes --leak-check=fu
 SOURCES := $(wildcard *.c)
 OBJECTS := $(patsubst %.c,%.o,$(SOURCES))
 DEPENDS := $(patsubst %.c,%.d,$(SOURCES))
+USE_CUSTOM_ALLOC := no
 
 .PHONY: clean
 

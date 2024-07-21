@@ -165,7 +165,7 @@ void serve(int argc, char *argv[])
     }
 
     printf("SiKV InMemory Database Server\nListening for connections on port %d\n", PORT);
-    struct hash_map *hmap = KV_init(MIN_ENTRY_NUM, KV_hash_function, KV_STRING);
+    struct hash_map *hmap = KV_init(MIN_ENTRY_NUM, KV_hash_function, KV_STRING, false);
 
     while (1)
     {
